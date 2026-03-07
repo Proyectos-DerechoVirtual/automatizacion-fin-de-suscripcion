@@ -3,6 +3,7 @@ import { getContactadosSet, upsertContactado } from '../../lib/supabase.js';
 import { getAllEnrollments, filterExpired, getUserDetails } from '../../lib/teachable.js';
 import { findPhone } from '../../lib/calendly.js';
 import { sendWhatsApp } from '../../lib/ultramsg.js';
+import { removeFromGroup } from '../../lib/baileys.js';
 
 export default async function handler(req, res) {
   // Verificar clave secreta
@@ -124,6 +125,25 @@ export default async function handler(req, res) {
               }
             } else {
               entry.alumnoStatus = 'skipped_no_phone';
+            }
+
+            // Sacar del grupo de WhatsApp (solo Oposiciones Justicia)
+            if (course.id === 1994647 && phone) {
+              const groupId = process.env.OPOSICIONES_JUSTICIA_GROUP;
+              if (groupId) {
+                if (dryRun) {
+                  console.log(`[DRY RUN] Sacar del grupo: ${phone} (${email})`);
+                  entry.groupRemoveStatus = 'dry_run';
+                } else {
+                  try {
+                    await removeFromGroup(phone, groupId);
+                    entry.groupRemoveStatus = 'removed';
+                  } catch (err) {
+                    entry.groupRemoveStatus = 'error';
+                    entry.groupRemoveError = err.message;
+                  }
+                }
+              }
             }
 
             // Guardar en Supabase (anti-spam para futuras ejecuciones)
