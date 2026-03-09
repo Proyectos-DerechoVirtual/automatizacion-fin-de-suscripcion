@@ -3,7 +3,7 @@ import { getContactadosSet, upsertContactado } from '../../lib/supabase.js';
 import { getAllEnrollments, filterExpired, getUserDetails } from '../../lib/teachable.js';
 import { findPhone } from '../../lib/calendly.js';
 import { sendWhatsApp } from '../../lib/ultramsg.js';
-import { removeFromGroup } from '../../lib/baileys.js';
+import { removeFromCommunity } from '../../lib/baileys.js';
 
 export default async function handler(req, res) {
   // Verificar clave secreta
@@ -127,20 +127,21 @@ export default async function handler(req, res) {
               entry.alumnoStatus = 'skipped_no_phone';
             }
 
-            // Sacar del grupo de WhatsApp (solo Oposiciones Justicia)
+            // Sacar de la comunidad de WhatsApp y todos sus subgrupos (solo Oposiciones Justicia)
             if (course.id === 1994647 && phone) {
-              const groupId = process.env.OPOSICIONES_JUSTICIA_GROUP;
-              if (groupId) {
+              const communityId = process.env.OPOSICIONES_JUSTICIA_GROUP;
+              if (communityId) {
                 if (dryRun) {
-                  console.log(`[DRY RUN] Sacar del grupo: ${phone} (${email})`);
-                  entry.groupRemoveStatus = 'dry_run';
+                  console.log(`[DRY RUN] Sacar de comunidad: ${phone} (${email})`);
+                  entry.communityRemoveStatus = 'dry_run';
                 } else {
                   try {
-                    await removeFromGroup(phone, groupId);
-                    entry.groupRemoveStatus = 'removed';
+                    const removeResult = await removeFromCommunity(phone, communityId);
+                    entry.communityRemoveStatus = 'removed';
+                    entry.communityGroupsProcessed = removeResult.groupsProcessed;
                   } catch (err) {
-                    entry.groupRemoveStatus = 'error';
-                    entry.groupRemoveError = err.message;
+                    entry.communityRemoveStatus = 'error';
+                    entry.communityRemoveError = err.message;
                   }
                 }
               }
